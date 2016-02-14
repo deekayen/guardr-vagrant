@@ -1,0 +1,14 @@
+---
+ansible_ssh_user: vagrant
+
+hostname: guardr
+# Default timezone: Etc/UTC
+timezone: America/New_York
+
+# Usable for Apache and misc server reports
+server_admin: nobody@example.com
+
+# Possible values include: debug, info, notice, warn, error, crit, alert, emerg.
+apache_log_level: error
+
+

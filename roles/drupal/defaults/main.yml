@@ -1,0 +1,13 @@
+---
+apache_server_admin: nobody@example.com
+
+drupal_mysql_database: drupal
+drupal_mysql_user: drupal
+drupal_domain: vagrant
+drupal_install_profile: guardr
+drupal_site_name: "Guardr"
+drupal_admin_name: admin
+drupal_admin_password: 12Password
+drupal_admin_email: nobody@example.com
+
+distro_version: 7.x-2.x

@@ -1,0 +1,31 @@
+---
+
+- name: Install Python software properties
+  apt: name=python-software-properties state=latest
+
+- name: Check if MariaDB is already installed.
+  stat: path=/etc/init.d/mysql
+  register: mariadb_installed
+
+- name: Add MariaDB software repository key.
+  apt_key: keyserver=hkp://keyserver.ubuntu.com:80 id=0xcbcb082a1bb943db
+  when: mariadb_installed.stat.exists == false
+
+- name: Add MariaDB software repository.
+  apt_repository: repo="deb http://ftp.osuosl.org/pub/mariadb/repo/10.1/ubuntu trusty main"
+  when: mariadb_installed.stat.exists == false
+
+- name: Update apt cache if MariaDB is not yet installed.
+  apt: update_cache=yes
+  when: mariadb_installed.stat.exists == false
+
+- name: Install MariaDB.
+  apt: name={{ item }} state=latest
+  with_items:
+    - mariadb-server
+    - mariadb-client
+    - mariadb-common
+    - python-mysqldb
+  register: mariadb_install_packages
+
+- include: secure-mariadb.yml

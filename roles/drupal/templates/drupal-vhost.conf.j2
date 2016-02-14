@@ -1,0 +1,20 @@
+<VirtualHost *:80>
+    ServerAdmin {{ apache_server_admin }}
+    ServerName {{ drupal_domain }}
+    ServerAlias www.{{ drupal_domain }}
+    DocumentRoot /var/www/drupal
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+    <Directory "/var/www/drupal">
+        Options +FollowSymLinks -Indexes
+        AllowOverride None
+        # Letting Apache search every directory is sloppy and slow.
+        Include /var/www/drupal/.htaccess
+    </Directory>
+    <Directory "/var/www/drupal/sites/default/files">
+        Options +FollowSymLinks -Indexes
+        AllowOverride None
+        # Letting Apache search every directory is sloppy and slow.
+        Include /var/www/drupal/sites/default/files/.htaccess
+    </Directory>
+</VirtualHost>

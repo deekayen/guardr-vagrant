@@ -1,0 +1,66 @@
+---
+
+- name: Update apt cache if needed.
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: Install Apache.
+  apt: "name={{ item }} state=latest"
+  with_items:
+    - apache2
+    - apache2-bin
+    - apache2-data
+    - apache2-utils
+    - libapache2-mod-fastcgi
+    - apachetop
+
+- name: Enable Apache headers module.
+  apache2_module: state=present name=headers
+
+- name: Enable Apache actions module.
+  apache2_module: state=present name=actions
+
+- name: Enable Apache expires module.
+  apache2_module: state=present name=expires
+
+- name: Enable Apache rewrite module.
+  apache2_module: state=present name=rewrite
+
+- name: Disable default vhost.
+  command: "a2dissite 000-default"
+
+- name: Disable default SSL vhost.
+  command: "a2dissite default-ssl"
+
+- name: Copy Apache ServerName to prevent notices.
+  template: src=httpd.conf.j2 dest=/etc/apache2/conf-available/httpd.conf
+
+- name: Copy Apache ports configuration.
+  template: src=ports.conf.j2 dest=/etc/apache2/ports.conf
+
+- stat: path=/etc/apache2/conf-enabled/httpd.conf
+  register: apache_httpd_conf
+
+- name: Enable Apache httpd configuration file.
+  command: /usr/sbin/a2enconf httpd
+  when: apache_httpd_conf.stat.islnk is not defined
+
+- name: Set ServerSignature.
+  lineinfile: dest=/etc/apache2/conf-available/security.conf regexp="^ServerSignature " line="ServerSignature Off" state=present
+
+- name: Set ServerTokens.
+  lineinfile: dest=/etc/apache2/conf-available/security.conf regexp="^ServerTokens " line="ServerTokens Prod" state=present
+
+- name: Check for deflate module.
+  stat: path=/etc/apache2/mods-enabled/deflate.load
+  register: mod_deflate
+
+# Deflate is an "essential" module, requiring forced disable.
+- name: Disable deflate module to mitigate BREACH attack.
+  command: /usr/sbin/a2dismod -f deflate
+  when: mod_deflate.stat.exists == True
+
+- name: Enable SSL module.
+  apache2_module: state=present name=ssl
+
+- name: Copy fastcgi configuration.
+  copy: src=fastcgi.conf dest=/etc/apache2/mods-available/fastcgi.conf owner=root group=root mode=644

@@ -1,0 +1,36 @@
+---
+
+- name: Add the PHP PPA.
+  apt_repository: repo="ppa:ondrej/php"
+  register: add_ondrej_ppa
+
+- name: Update apt cache to get PHP packages.
+  apt: update_cache=yes
+  when: add_ondrej_ppa.changed == True
+
+- name: Install PHP.
+  apt: "name={{ item }} state=latest"
+  with_items:
+    - php-pear
+    - php7.0-common
+    - php7.0-curl
+    - php7.0-dev
+    - php7.0-fpm
+    - php7.0-gd
+    - php7.0-json
+    - php7.0-mcrypt
+    - php7.0-mysql
+
+- name: Make www-data own cgi-bin.
+  file: path=/usr/lib/cgi-bin state=directory owner=www-data group=www-data
+
+- name: Touch php-fpm cgi-bin file.
+  file: path=/usr/lib/cgi-bin/php7.0-fcgi state=touch owner=www-data group=www-data
+
+- service: name=apache2 state=restarted
+
+# missing uploadprogress from pecl
+#pecl channel-update pecl.php.net
+#pecl install uploadprogress
+#touch /etc/php.d/uploadprogress.ini
+#echo extension=uploadprogress.so > /etc/php.d/uploadprogress.ini

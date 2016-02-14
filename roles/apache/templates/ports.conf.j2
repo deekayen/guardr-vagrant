@@ -1,0 +1,10 @@
+Listen 127.0.0.1:80
+Listen {{ ansible_default_ipv4.address }}:80
+
+<IfModule mod_ssl.c>
+    Listen {{ ansible_default_ipv4.address }}:443
+</IfModule>
+
+<IfModule mod_gnutls.c>
+    Listen {{ ansible_default_ipv4.address }}:443
+</IfModule>

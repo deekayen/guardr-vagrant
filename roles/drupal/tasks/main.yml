@@ -1,0 +1,133 @@
+---
+
+- name: Check if drush is installed.
+  stat: path=/usr/local/bin/drush
+  register: drush_bin
+
+- name: Download drush.
+  get_url:
+    url: http://files.drush.org/drush.phar
+    dest: /usr/local/bin/drush
+    mode: 0755
+  when: not drush_bin.stat.exists
+
+- name: Initialize drush.
+  shell: drush --yes init
+  when: not drush_bin.stat.exists
+
+- name: Create a MySQL database for Drupal.
+  mysql_db:
+    db: "{{ drupal_mysql_database }}"
+    state: present
+
+- name: Check for existing Drupal configuration.
+  stat: path=/var/www/drupal/sites/default/settings.php
+  register: drupal_settings
+
+- name: Install random password generator.
+  apt: name=pwgen state=present
+  when: drupal_settings.stat.exists == False
+
+- name: Generate a random database root password.
+  shell: pwgen -B -s 24 1
+  register: drupal_mysql_password
+  ignore_errors: false
+  when: drupal_settings.stat.exists == False
+
+- name: Create a MySQL user for Drupal.
+  mysql_user:
+    name: "{{ drupal_mysql_user }}"
+    host: "{{ item }}"
+    priv: "{{ drupal_mysql_database }}.*:ALL"
+    password: "{{ drupal_mysql_password.stdout }}"
+    update_password: always
+  with_items:
+    - 127.0.0.1
+    - ::1
+    - localhost
+  when: drupal_mysql_password.changed == True
+
+- name: Remove previous temporary clones.
+  file: path=/tmp/clone state=absent
+
+- name: Clone repository.
+  git: repo=https://git.drupal.org/project/guardr.git dest=/tmp/clone version={{ distro_version }}
+
+#- name: Download Drupal Core.
+#  shell: drush dl drupal-7 --drupal-project-rename --no-cache
+#  args:
+#    chdir: /var/www
+#    creates: /var/www/drupal/index.php
+#  when: drupal_mysql_password.changed == True
+
+- name: Remove previous distribution builds.
+  file: path=/tmp/build state=absent
+
+- name: Build distribution.
+  command: drush --no-patch-txt make /tmp/clone/build-guardr.make /tmp/build
+
+- name: Remove temporary clone.
+  file: path=/tmp/clone state=absent
+
+- name: "Syncing {{ distro_version }} to web root..."
+  command: rsync --super -aq --exclude="private" --exclude=".git" --exclude=".gitignore" /tmp/build/ /var/www/drupal/
+
+# rsync --super --chmod=Dg+s,ug+rw,Dug+X -rogl --exclude="private" --exclude=".git" --exclude=".gitignore" /tmp/build/ /var/www/drupal/
+
+- name: Remove temporary build.
+  file: path=/tmp/build state=absent
+
+- name: "Install {{ drupal_install_profile }}."
+  shell: >
+    drush si {{ drupal_install_profile }} -y
+    --site-name="{{ drupal_site_name | quote }}"
+    --account-name={{ drupal_admin_name | quote }}
+    --account-pass={{ drupal_admin_password | quote}}
+    --account-mail={{ drupal_admin_email | quote }}
+    --site-mail={{ drupal_admin_email | quote }}
+    --db-url=mysql://{{ drupal_mysql_user }}:{{ drupal_mysql_password.stdout }}@localhost/{{ drupal_mysql_database }}
+  args:
+    chdir: /var/www/drupal
+    creates: /var/www/drupal/sites/default/settings.php
+  when: drupal_mysql_password.changed == True
+
+# backdrop
+#chmod a+w . settings.php
+#./core/scripts/install.sh --db-url=mysql://root:@127.0.0.1/backdrop --account-name=admin --account-pass=admin
+#chmod go-w . settings.php
+
+- name: Set restricted permissions on settings.php.
+  file:
+    path: "/var/www/drupal/sites/default/settings.php"
+    mode: 0744
+
+- name: Set global permissions on files directory.
+  file:
+    path: "/var/www/drupal/sites/default/files"
+    mode: 0777
+    state: directory
+    recurse: yes
+
+- name: Add Apache virtualhost for Drupal.
+  template:
+    src: drupal-vhost.conf.j2
+    dest: "/etc/apache2/sites-available/{{ drupal_domain }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Add Apache SSL virtualhost for Drupal.
+  template:
+    src: drupal-ssl-vhost.conf.j2
+    dest: "/etc/apache2/sites-available/{{ drupal_domain }}-ssl.conf"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable Drupal vhost.
+  command: "a2ensite {{ drupal_domain }}"
+  notify: restart webserver
+
+- name: Enable Drupal SSL vhost.
+  command: "a2ensite {{ drupal_domain }}-ssl"
+  notify: restart webserver
