@@ -53,13 +53,6 @@
 - name: Clone repository.
   git: repo=https://git.drupal.org/project/guardr.git dest=/tmp/clone version={{ distro_version }}
 
-#- name: Download Drupal Core.
-#  shell: drush dl drupal-7 --drupal-project-rename --no-cache
-#  args:
-#    chdir: /var/www
-#    creates: /var/www/drupal/index.php
-#  when: drupal_mysql_password.changed == True
-
 - name: Remove previous distribution builds.
   file: path=/tmp/build state=absent
 
@@ -71,8 +64,6 @@
 
 - name: "Syncing {{ distro_version }} to web root..."
   command: rsync --super -aq --exclude="private" --exclude=".git" --exclude=".gitignore" /tmp/build/ /var/www/drupal/
-
-# rsync --super --chmod=Dg+s,ug+rw,Dug+X -rogl --exclude="private" --exclude=".git" --exclude=".gitignore" /tmp/build/ /var/www/drupal/
 
 - name: Remove temporary build.
   file: path=/tmp/build state=absent
@@ -90,11 +81,6 @@
     chdir: /var/www/drupal
     creates: /var/www/drupal/sites/default/settings.php
   when: drupal_mysql_password.changed == True
-
-# backdrop
-#chmod a+w . settings.php
-#./core/scripts/install.sh --db-url=mysql://root:@127.0.0.1/backdrop --account-name=admin --account-pass=admin
-#chmod go-w . settings.php
 
 - name: Set restricted permissions on settings.php.
   file:
