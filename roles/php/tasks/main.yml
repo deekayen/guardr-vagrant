@@ -1,15 +1,19 @@
 ---
 
 - name: Add the PHP PPA.
-  apt_repository: repo="ppa:ondrej/php"
+  apt_repository:
+    repo: "ppa:ondrej/php"
   register: add_ondrej_ppa
 
 - name: Update apt cache to get PHP packages.
-  apt: update_cache=yes
-  when: add_ondrej_ppa.changed == True
+  apt:
+    update_cache: yes
+  when: add_ondrej_ppa.changed
 
 - name: Install PHP.
-  apt: "name={{ item }} state=latest"
+  apt:
+    name: "{{ item }}"
+    state: present
   with_items:
     - php-pear
     - php7.0-common
@@ -20,17 +24,27 @@
     - php7.0-json
     - php7.0-mcrypt
     - php7.0-mysql
+  notify: restart apache
 
 - name: Make www-data own cgi-bin.
-  file: path=/usr/lib/cgi-bin state=directory owner=www-data group=www-data
+  file:
+    path: /usr/lib/cgi-bin
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: 0644
 
 - name: Touch php-fpm cgi-bin file.
-  file: path=/usr/lib/cgi-bin/php7.0-fcgi state=touch owner=www-data group=www-data
-
-- service: name=apache2 state=restarted
+  file:
+    path: /usr/lib/cgi-bin/php7.0-fcgi
+    state: touch
+    owner: www-data
+    group: www-data
+    mode: 0644
+  notify: restart apache
 
 # missing uploadprogress from pecl
-#pecl channel-update pecl.php.net
-#pecl install uploadprogress
-#touch /etc/php.d/uploadprogress.ini
-#echo extension=uploadprogress.so > /etc/php.d/uploadprogress.ini
+# pecl channel-update pecl.php.net
+# pecl install uploadprogress
+# touch /etc/php.d/uploadprogress.ini
+# echo extension=uploadprogress.so > /etc/php.d/uploadprogress.ini

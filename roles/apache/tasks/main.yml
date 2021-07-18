@@ -1,10 +1,14 @@
 ---
 
 - name: Update apt cache if needed.
-  apt: update_cache=yes cache_valid_time=3600
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
 
 - name: Install Apache.
-  apt: "name={{ item }} state=latest"
+  apt:
+    name: "{{ item }}"
+    state: present
   with_items:
     - apache2
     - apache2-bin
@@ -14,16 +18,24 @@
     - apachetop
 
 - name: Enable Apache headers module.
-  apache2_module: state=present name=headers
+  apache2_module:
+    state: present
+    name: headers
 
 - name: Enable Apache actions module.
-  apache2_module: state=present name=actions
+  apache2_module:
+    state: present
+    name: actions
 
 - name: Enable Apache expires module.
-  apache2_module: state=present name=expires
+  apache2_module:
+    state: present
+    name: expires
 
 - name: Enable Apache rewrite module.
-  apache2_module: state=present name=rewrite
+  apache2_module:
+    state: present
+    name: rewrite
 
 - name: Disable default vhost.
   command: "a2dissite 000-default"
@@ -32,12 +44,24 @@
   command: "a2dissite default-ssl"
 
 - name: Copy Apache ServerName to prevent notices.
-  template: src=httpd.conf.j2 dest=/etc/apache2/conf-available/httpd.conf
+  template:
+    src: httpd.conf.j2
+    dest: /etc/apache2/conf-available/httpd.conf
+    owner: root
+    group: root
+    mode: 0644
 
 - name: Copy Apache ports configuration.
-  template: src=ports.conf.j2 dest=/etc/apache2/ports.conf
+  template:
+    src: ports.conf.j2
+    dest: /etc/apache2/ports.conf
+    owner: root
+    group: root
+    mode: 0644
 
-- stat: path=/etc/apache2/conf-enabled/httpd.conf
+- name: Get information on httpd.conf.
+  stat:
+    path: /etc/apache2/conf-enabled/httpd.conf
   register: apache_httpd_conf
 
 - name: Enable Apache httpd configuration file.
@@ -45,22 +69,38 @@
   when: apache_httpd_conf.stat.islnk is not defined
 
 - name: Set ServerSignature.
-  lineinfile: dest=/etc/apache2/conf-available/security.conf regexp="^ServerSignature " line="ServerSignature Off" state=present
+  lineinfile:
+    dest: /etc/apache2/conf-available/security.conf
+    regexp: "^ServerSignature "
+    line: "ServerSignature Off"
+    state: present
 
 - name: Set ServerTokens.
-  lineinfile: dest=/etc/apache2/conf-available/security.conf regexp="^ServerTokens " line="ServerTokens Prod" state=present
+  lineinfile:
+    dest: /etc/apache2/conf-available/security.conf
+    regexp: "^ServerTokens "
+    line: "ServerTokens Prod"
+    state: present
 
 - name: Check for deflate module.
-  stat: path=/etc/apache2/mods-enabled/deflate.load
+  stat:
+    path: /etc/apache2/mods-enabled/deflate.load
   register: mod_deflate
 
 # Deflate is an "essential" module, requiring forced disable.
 - name: Disable deflate module to mitigate BREACH attack.
   command: /usr/sbin/a2dismod -f deflate
-  when: mod_deflate.stat.exists == True
+  when: mod_deflate.stat.exists
 
 - name: Enable SSL module.
-  apache2_module: state=present name=ssl
+  apache2_module:
+    state: present
+    name: ssl
 
 - name: Copy fastcgi configuration.
-  copy: src=fastcgi.conf dest=/etc/apache2/mods-available/fastcgi.conf owner=root group=root mode=644
+  copy:
+    src: fastcgi.conf
+    dest: /etc/apache2/mods-available/fastcgi.conf
+    owner: root
+    group: root
+    mode: 0644

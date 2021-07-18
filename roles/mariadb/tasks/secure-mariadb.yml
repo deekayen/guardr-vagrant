@@ -1,18 +1,21 @@
 ---
 
 - name: Check for existing root database credentials.
-  stat: path={{ ansible_user_dir }}/.my.cnf
+  stat:
+    path: "{{ ansible_user_dir }}/.my.cnf"
   register: my_cnf
 
 - name: Install random password generator.
-  apt: name=pwgen state=present
-  when: my_cnf.stat.exists == False
+  apt:
+    name: pwgen
+    state: present
+  when: not my_cnf.stat.exists
 
 - name: Generate a random database root password.
   shell: pwgen -B -s 24 1
   register: mariadb_root_password
   ignore_errors: false
-  when: my_cnf.stat.exists == False
+  when: not my_cnf.stat.exists
 
 - name: Get list of hosts for the root user.
   command: mysql -NBe 'SELECT Host FROM mysql.user WHERE User = "root" ORDER BY (Host="localhost") ASC'
@@ -28,12 +31,12 @@
 
 - name: Copy .my.cnf file with database root credentials.
   template:
-    src: "user-my.cnf.j2"
+    src: user-my.cnf.j2
     dest: "{{ ansible_user_dir }}/.my.cnf"
     owner: "{{ ansible_user_id }}"
     group: "{{ ansible_user_gecos }}"
     mode: 0600
-  when: mariadb_root_password.changed == True
+  when: mariadb_root_password.changed
 
 - name: Get list of hosts for the anonymous user.
   command: mysql -NBe 'SELECT Host FROM mysql.user WHERE User = ""'
@@ -42,10 +45,12 @@
 
 - name: Remove anonymous MariaDB users.
   mysql_user:
-     name: ""
-     host: "{{ item }}"
-     state: "absent"
+    name: ""
+    host: "{{ item }}"
+    state: absent
   with_items: mariadb_anonymous_hosts.stdout_lines
 
 - name: Remove MariaDB test database.
-  mysql_db: name="test" state="absent"
+  mysql_db:
+    name: test
+    state: absent

@@ -1,7 +1,8 @@
 ---
 
 - name: Check if drush is installed.
-  stat: path=/usr/local/bin/drush
+  stat:
+    path: /usr/local/bin/drush
   register: drush_bin
 
 - name: Download drush.
@@ -21,18 +22,21 @@
     state: present
 
 - name: Check for existing Drupal configuration.
-  stat: path=/var/www/drupal/sites/default/settings.php
+  stat:
+    path: /var/www/drupal/sites/default/settings.php
   register: drupal_settings
 
 - name: Install random password generator.
-  apt: name=pwgen state=present
-  when: drupal_settings.stat.exists == False
+  apt:
+    name: pwgen
+    state: present
+  when: not drupal_settings.stat.exists
 
 - name: Generate a random database root password.
   shell: pwgen -B -s 24 1
   register: drupal_mysql_password
   ignore_errors: false
-  when: drupal_settings.stat.exists == False
+  when: not drupal_settings.stat.exists
 
 - name: Create a MySQL user for Drupal.
   mysql_user:
@@ -45,28 +49,38 @@
     - 127.0.0.1
     - ::1
     - localhost
-  when: drupal_mysql_password.changed == True
+  when: drupal_mysql_password.changed
 
 - name: Remove previous temporary clones.
-  file: path=/tmp/clone state=absent
+  file:
+    path: /tmp/clone
+    state: absent
 
 - name: Clone repository.
-  git: repo=https://git.drupal.org/project/guardr.git dest=/tmp/clone version={{ distro_version }}
+  git:
+    repo: https://git.drupal.org/project/guardr.git
+    dest: "/tmp/clone version={{ distro_version }}"
 
 - name: Remove previous distribution builds.
-  file: path=/tmp/build state=absent
+  file:
+    path: /tmp/build
+    state: absent
 
 - name: Build distribution.
   command: drush --no-patch-txt make /tmp/clone/build-guardr.make /tmp/build
 
 - name: Remove temporary clone.
-  file: path=/tmp/clone state=absent
+  file:
+    path: /tmp/clone
+    state: absent
 
 - name: "Syncing {{ distro_version }} to web root..."
   command: rsync --super -aq --exclude="private" --exclude=".git" --exclude=".gitignore" /tmp/build/ /var/www/drupal/
 
 - name: Remove temporary build.
-  file: path=/tmp/build state=absent
+  file:
+    path: /tmp/build
+    state: absent
 
 - name: "Install {{ drupal_install_profile }}."
   shell: >
@@ -80,7 +94,7 @@
   args:
     chdir: /var/www/drupal
     creates: /var/www/drupal/sites/default/settings.php
-  when: drupal_mysql_password.changed == True
+  when: drupal_mysql_password.changed
 
 - name: Set restricted permissions on settings.php.
   file:

@@ -1,13 +1,19 @@
 ---
 
-- hostname: name="ansible"
+- name: Set hostname to ansible.
+  hostname:
+    name: ansible
 
 - name: Update packages
-  apt: upgrade=safe update_cache=yes
+  apt:
+    upgrade: safe
+    update_cache: yes
   when: ansible_os_family == 'Debian'
 
 - name: Install system utilities.
-  apt: "name={{ item }} state=latest"
+  apt:
+    name: "{{ item }}"
+    state: present
   with_items:
     - bzip2
     - curl
@@ -44,7 +50,12 @@
     - zoo
 
 - name: Set timezone.
-  copy: content="America/New_York\n" dest=/etc/timezone owner=root group=root mode=0644
+  copy:
+    content: "America/New_York\n"
+    dest: /etc/timezone
+    owner: root
+    group: root
+    mode: 0644
   register: timechange
 
 - name: Reconfigure timezone data.
@@ -52,4 +63,9 @@
   when: timechange.changed and ansible_os_family == "Debian"
 
 - name: Upload a new motd.
-  copy: src=motd dest=/etc/motd owner=root group=root mode=644
+  copy:
+    src: motd
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: 0644
